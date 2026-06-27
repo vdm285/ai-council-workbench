@@ -1,0 +1,6 @@
+{
+  "name": "Manual AI Council Workbench",
+  "description": "A workbench for running manual multi-model consensus council workflows with blind evaluation, voting math, consensus ledger editing, and proposal approval voting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
