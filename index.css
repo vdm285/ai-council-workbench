@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Playfair Display", Georgia, serif;
+  
+  --color-brand-bg: #0a0b0e;             /* Sophisticated main background */
+  --color-brand-panel: #12151c;          /* High-contrast slate card panels */
+  --color-brand-panel-light: #161b22;    /* Medium contrast panel / active buttons */
+  --color-brand-accent: #3b82f6;         /* Sophisticated brand blue */
+  --color-brand-accent-glow: rgba(59, 130, 246, 0.15);
+  --color-brand-text: #e2e8f0;           /* Clean text slate white */
+  --color-brand-text-muted: #64748b;     /* High contrast muted text label */
+  --color-brand-border: #1f2937;         /* Sleek charcoal border line */
+  
+  --color-brand-good: #10b981;           /* Emerald / Approved */
+  --color-brand-warn: #f59e0b;           /* Amber / Pending / Disputed */
+  --color-brand-bad: #f43f5e;            /* Rose / Vetoed / Flaw */
+}
+
+@layer base {
+  body {
+    background-color: var(--color-brand-bg);
+    color: var(--color-brand-text);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+}
+
+/* Custom scrollbars for dashboard feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a313d;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3e485a;
+}

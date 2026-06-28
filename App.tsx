@@ -1,0 +1,379 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import { Model, Project, WorkbenchState, ConsensusLedger, JudgeBallot, ApprovalBallot } from './types';
+import { seededShuffle, computeElections, computeStage4Selection } from './utils';
+
+// Sub-components
+import Header from './components/Header';
+import Sidebar, { TabId } from './components/Sidebar';
+import RosterManager from './components/RosterManager';
+import ProjectManager from './components/ProjectManager';
+
+// Panels
+import OverviewPanel from './components/OverviewPanel';
+import Stage1Panel from './components/Stage1Panel';
+import Stage2Panel from './components/Stage2Panel';
+import ResultsPanel from './components/ResultsPanel';
+import LedgerPanel from './components/LedgerPanel';
+import Stage3Panel from './components/Stage3Panel';
+import Stage4Panel from './components/Stage4Panel';
+import FinalPanel from './components/FinalPanel';
+import BackupPanel from './components/BackupPanel';
+
+const STORAGE_KEY = 'manual_ai_council_workbench_v1_react';
+
+const DEFAULT_MODELS: Model[] = [
+  { id: 'chatgpt', name: 'ChatGPT', bloc: 'Western', url: 'https://chatgpt.com' },
+  { id: 'gemini', name: 'Gemini', bloc: 'Western', url: 'https://gemini.google.com' },
+  { id: 'grok', name: 'Grok', bloc: 'Western', url: 'https://grok.com' },
+  { id: 'deepseek', name: 'DeepSeek', bloc: 'Eastern', url: 'https://chat.deepseek.com' },
+  { id: 'qwen', name: 'Qwen', bloc: 'Eastern', url: 'https://chat.qwen.ai' },
+  { id: 'kimi', name: 'Kimi', bloc: 'Eastern', url: 'https://kimi.moonshot.cn' }
+];
+
+function createFreshProject(id: string, title: string): Project {
+  return {
+    id,
+    title,
+    originalPrompt: '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    stage1Responses: {},
+    stage2Orders: {},
+    stage2Raw: {},
+    judgeBallots: {},
+    electionResults: null,
+    consensusLedger: {
+      baseCandidateId: '',
+      runnerUpCandidateIds: [],
+      mustInclude: [],
+      mustFix: [],
+      mustExclude: [],
+      openDisputes: []
+    },
+    stage3Raw: {},
+    consensusProposals: {},
+    stage4Orders: {},
+    stage4Raw: {},
+    approvalBallots: {},
+    finalSelection: null
+  };
+}
+
+export default function App() {
+  const [state, setState] = useState<WorkbenchState>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && parsed.projects) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load storage state:', e);
+    }
+
+    const defaultProjId = 'default_project';
+    const defaultProject = createFreshProject(defaultProjId, 'First Council Session');
+    return {
+      projects: { [defaultProjId]: defaultProject },
+      activeProjectId: defaultProjId,
+      customModels: []
+    };
+  });
+
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [rosterOpen, setRosterOpen] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(false);
+
+  // Auto-save state
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error('Failed to save state to localStorage:', e);
+    }
+  }, [state]);
+
+  const activeProject = state.activeProjectId ? state.projects[state.activeProjectId] || null : null;
+  const currentModels = state.customModels.length > 0 ? state.customModels : DEFAULT_MODELS;
+
+  const updateActiveProject = (updated: Project) => {
+    if (!state.activeProjectId) return;
+    setState(prev => ({
+      ...prev,
+      projects: {
+        ...prev.projects,
+        [state.activeProjectId!]: {
+          ...updated,
+          updatedAt: new Date().toISOString()
+        }
+      }
+    }));
+  };
+
+  const handleSelectProject = (id: string) => {
+    setState(prev => ({ ...prev, activeProjectId: id }));
+  };
+
+  const handleCreateProject = (title: string) => {
+    const id = `project_${Date.now()}`;
+    const fresh = createFreshProject(id, title);
+    setState(prev => ({
+      ...prev,
+      projects: {
+        ...prev.projects,
+        [id]: fresh
+      },
+      activeProjectId: id
+    }));
+  };
+
+  const handleDeleteProject = (id: string) => {
+    if (Object.keys(state.projects).length <= 1) return;
+    setState(prev => {
+      const copy = { ...prev.projects };
+      delete copy[id];
+      const remainingIds = Object.keys(copy);
+      return {
+        ...prev,
+        projects: copy,
+        activeProjectId: remainingIds[0] || null
+      };
+    });
+  };
+
+  const handleUpdateRoster = (updated: Model[]) => {
+    setState(prev => ({ ...prev, customModels: updated }));
+  };
+
+  const handleResetRoster = () => {
+    setState(prev => ({ ...prev, customModels: [] }));
+  };
+
+  const handleGenerateOrders = () => {
+    if (!activeProject) return;
+    const candidateIds = currentModels.map(m => m.id);
+    const orders: Record<string, string[]> = {};
+    currentModels.forEach(judge => {
+      const seedText = `${activeProject.title}|${judge.id}|stage2|${activeProject.originalPrompt}`;
+      orders[judge.id] = seededShuffle(candidateIds, seedText);
+    });
+    updateActiveProject({
+      ...activeProject,
+      stage2Orders: orders
+    });
+  };
+
+  const handleGenerateStage4Orders = () => {
+    if (!activeProject) return;
+    const proposalIds = Object.keys(activeProject.consensusProposals).filter(
+      pid => !activeProject.consensusProposals[pid]?.parseError
+    );
+    const orders: Record<string, string[]> = {};
+    currentModels.forEach(judge => {
+      const seedText = `${activeProject.title}|${judge.id}|stage4|${JSON.stringify(proposalIds)}`;
+      orders[judge.id] = seededShuffle(proposalIds, seedText);
+    });
+    updateActiveProject({
+      ...activeProject,
+      stage4Orders: orders
+    });
+  };
+
+  const handleComputeElection = () => {
+    if (!activeProject) return;
+    const ballots = (Object.values(activeProject.judgeBallots) as JudgeBallot[]).filter(
+      b => !b.parseError && b.ranking && b.ranking.length > 0
+    );
+    const candidateIds = currentModels.map(m => m.id);
+    if (ballots.length < 2) return;
+    const results = computeElections(candidateIds, ballots);
+
+    // Default base and runner-ups selection
+    const ledger = { ...activeProject.consensusLedger };
+    if (!ledger.baseCandidateId && results.recommendedBase) {
+      ledger.baseCandidateId = results.recommendedBase;
+    }
+    if ((!ledger.runnerUpCandidateIds || ledger.runnerUpCandidateIds.length === 0) && results.runnerUps) {
+      ledger.runnerUpCandidateIds = results.runnerUps;
+    }
+
+    updateActiveProject({
+      ...activeProject,
+      electionResults: results,
+      consensusLedger: ledger
+    });
+  };
+
+  const handleSelectFinal = () => {
+    if (!activeProject) return;
+    const proposalIds = Object.keys(activeProject.consensusProposals).filter(
+      pid => !activeProject.consensusProposals[pid]?.parseError
+    );
+    const ballots = (Object.values(activeProject.approvalBallots) as ApprovalBallot[]).filter(b => !b.parseError);
+    const finalSelection = computeStage4Selection(proposalIds, ballots, activeProject.consensusProposals);
+    updateActiveProject({
+      ...activeProject,
+      finalSelection
+    });
+  };
+
+  const handleImportFull = (imported: any) => {
+    if (imported.projects && imported.activeProjectId) {
+      setState(imported);
+    } else if (imported.id) {
+      // Single project format
+      setState(prev => ({
+        ...prev,
+        projects: {
+          ...prev.projects,
+          [imported.id]: imported
+        },
+        activeProjectId: imported.id
+      }));
+    }
+  };
+
+  const handleResetActiveProject = () => {
+    if (!state.activeProjectId) return;
+    const fresh = createFreshProject(state.activeProjectId, activeProject?.title || 'Wiped Project');
+    updateActiveProject(fresh);
+  };
+
+  return (
+    <div className="min-h-screen bg-brand-bg flex flex-col font-sans select-none antialiased">
+      <Header
+        activeProject={activeProject}
+        onOpenRoster={() => setRosterOpen(true)}
+        onOpenProjects={() => setProjectsOpen(true)}
+        onOpenBackup={() => setActiveTab('backup')}
+      />
+
+      <div className="flex-1 flex flex-col md:flex-row relative">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-10 max-w-7xl mx-auto w-full select-text">
+          {activeProject ? (
+            <>
+              {activeTab === 'overview' && (
+                <OverviewPanel
+                  onNavigate={setActiveTab}
+                  modelsCount={currentModels.length}
+                />
+              )}
+
+              {activeTab === 'stage1' && (
+                <Stage1Panel
+                  project={activeProject}
+                  models={currentModels}
+                  onUpdateProject={updateActiveProject}
+                  onGenerateOrders={handleGenerateOrders}
+                  onNavigate={setActiveTab}
+                />
+              )}
+
+              {activeTab === 'stage2' && (
+                <Stage2Panel
+                  project={activeProject}
+                  models={currentModels}
+                  onUpdateProject={updateActiveProject}
+                  onNavigate={setActiveTab}
+                  onComputeElection={handleComputeElection}
+                />
+              )}
+
+              {activeTab === 'results' && (
+                <ResultsPanel
+                  project={activeProject}
+                  models={currentModels}
+                  onNavigate={setActiveTab}
+                />
+              )}
+
+              {activeTab === 'ledger' && (
+                <LedgerPanel
+                  project={activeProject}
+                  models={currentModels}
+                  onUpdateProject={updateActiveProject}
+                  onNavigate={setActiveTab}
+                />
+              )}
+
+              {activeTab === 'stage3' && (
+                <Stage3Panel
+                  project={activeProject}
+                  models={currentModels}
+                  onUpdateProject={updateActiveProject}
+                  onNavigate={setActiveTab}
+                  onGenerateStage4={handleGenerateStage4Orders}
+                />
+              )}
+
+              {activeTab === 'stage4' && (
+                <Stage4Panel
+                  project={activeProject}
+                  models={currentModels}
+                  onUpdateProject={updateActiveProject}
+                  onNavigate={setActiveTab}
+                  onSelectFinal={handleSelectFinal}
+                />
+              )}
+
+              {activeTab === 'final' && (
+                <FinalPanel
+                  project={activeProject}
+                  models={currentModels}
+                  onNavigate={setActiveTab}
+                />
+              )}
+
+              {activeTab === 'backup' && (
+                <BackupPanel
+                  project={activeProject}
+                  onImportProject={handleImportFull}
+                  onResetProject={handleResetActiveProject}
+                  fullState={state}
+                />
+              )}
+            </>
+          ) : (
+            <div className="text-center py-24 space-y-4 max-w-sm mx-auto">
+              <p className="text-sm text-brand-text-muted">No active project workspace could be located.</p>
+              <button
+                onClick={() => setProjectsOpen(true)}
+                className="rounded-xl bg-brand-accent px-5 py-2.5 text-xs font-bold text-brand-bg hover:bg-brand-accent/90 cursor-pointer shadow-md"
+              >
+                Create Workspace
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Roster & Project Modals */}
+      <RosterManager
+        isOpen={rosterOpen}
+        onClose={() => setRosterOpen(false)}
+        models={currentModels}
+        onUpdateModels={handleUpdateRoster}
+        onResetToDefault={handleResetRoster}
+      />
+
+      <ProjectManager
+        isOpen={projectsOpen}
+        onClose={() => setProjectsOpen(false)}
+        projects={state.projects}
+        activeProjectId={state.activeProjectId}
+        onSelectProject={handleSelectProject}
+        onCreateProject={handleCreateProject}
+        onDeleteProject={handleDeleteProject}
+      />
+    </div>
+  );
+}
