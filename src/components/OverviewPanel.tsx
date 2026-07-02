@@ -35,14 +35,14 @@ export default function OverviewPanel({ onNavigate, modelsCount }: OverviewPanel
       title: 'Blind Evaluation (Stage 2)',
       icon: Scale,
       color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
-      desc: 'Judges see shuffled, anonymized replies. They issue structured evaluations, rankings, scores, and flaw critiques.'
+      desc: 'Judges see one shared shuffled, anonymized packet. They issue strict rankings and concise critique ledgers without numerical scores.'
     },
     {
       num: '3',
       title: 'Voting & Ledger (Stage 2B & 2C)',
       icon: FileSpreadsheet,
       color: 'text-green-400 bg-green-400/10 border-green-400/20',
-      desc: 'The app computes voting math (Condorcet, IRV, Borda, scores) and generates a shared, human-edited "Consensus Ledger".'
+      desc: 'The app computes ranking-only voting math (Condorcet, Minimax, IRV, Borda) and generates a shared, human-edited "Consensus Ledger".'
     },
     {
       num: '4',
@@ -119,7 +119,7 @@ export default function OverviewPanel({ onNavigate, modelsCount }: OverviewPanel
           </div>
           <h3 className="text-sm font-bold text-white">Algorithmic Consolidation</h3>
           <p className="text-xs text-brand-text-muted leading-relaxed">
-            We compute multiple ballot-counting systems simultaneously (Condorcet Pairwise, IRV, Borda totals, and median approvals) to bypass standard single-system voting paradoxes.
+            We compute multiple ranking systems simultaneously (Condorcet Pairwise, Minimax, IRV, and Borda totals) to bypass standard single-system voting paradoxes.
           </p>
         </div>
       </div>

@@ -59,8 +59,10 @@ export default function ResultsPanel({ project, models, onNavigate }: ResultsPan
 
   // Find max values for percentage bars
   const maxBorda = Math.max(...Object.values(r.borda || {}), 1);
-  const maxApproval = Math.max(...Object.values(r.approval.counts || {}), 1);
-  const maxScore = Math.max(...Object.values(r.score.meanByCandidate || {}), 1);
+  const maxFirstPlace = Math.max(...Object.values(r.firstPlace || {}), 1);
+  const firstPlace = r.firstPlace || {};
+  const averageRank = r.averageRank || {};
+  const finalRanking = r.finalRanking || sortByValueDesc(r.borda || {}).map(([cid]) => cid);
 
   return (
     <div className="space-y-8">
@@ -92,8 +94,8 @@ export default function ResultsPanel({ project, models, onNavigate }: ResultsPan
             </h2>
             <p className="text-xs text-brand-text-muted leading-relaxed max-w-xl">
               {r.robustAgreement
-                ? 'High-integrity consensus detected. This candidate scored top marks across almost all major ballot metrics (Condorcet, IRV, Borda, and Approvals).'
-                : 'Minority splits or split judgements detected. Inspect the individual metric totals and check pairwise matrices to construct a tailored constitution.'}
+                ? 'High-integrity consensus detected. This candidate is supported across the ranking-only ballot methods.'
+                : 'Minority splits or split judgements detected. Inspect the ranking metrics and pairwise matrix before forming the ledger.'}
             </p>
           </div>
         </div>
@@ -111,10 +113,10 @@ export default function ResultsPanel({ project, models, onNavigate }: ResultsPan
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: 'Condorcet', winner: r.condorcet.winner, color: 'text-brand-accent border-brand-accent/20 bg-brand-accent/5' },
+          { label: 'Minimax', winner: r.minimax?.winner || null, color: 'text-cyan-400 border-cyan-400/20 bg-cyan-400/5' },
           { label: 'IRV (Runoff)', winner: r.irv.winner, color: 'text-purple-400 border-purple-400/20 bg-purple-400/5' },
           { label: 'Borda Count', winner: sortByValueDesc(r.borda)[0]?.[0] || null, color: 'text-green-400 border-green-400/20 bg-green-400/5' },
-          { label: 'Score Average', winner: sortByValueDesc(r.score.meanByCandidate)[0]?.[0] || null, color: 'text-yellow-400 border-yellow-400/20 bg-yellow-400/5' },
-          { label: 'Approval-as-Base', winner: sortByValueDesc(r.approval.counts)[0]?.[0] || null, color: 'text-pink-400 border-pink-400/20 bg-pink-400/5' }
+          { label: 'First-Place', winner: sortByValueDesc(firstPlace)[0]?.[0] || null, color: 'text-pink-400 border-pink-400/20 bg-pink-400/5' }
         ].map((item, idx) => (
           <div key={idx} className={`rounded-xl border p-4 space-y-1.5 ${item.color}`}>
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{item.label}</span>
@@ -136,7 +138,7 @@ export default function ResultsPanel({ project, models, onNavigate }: ResultsPan
               <BarChart3 className="h-4 w-4 text-brand-accent" />
               Borda Count Rankings
             </h3>
-            <span className="text-[10px] text-brand-text-muted">High scores represent broad preference compatibility</span>
+            <span className="text-[10px] text-brand-text-muted">Higher totals represent broad ranking compatibility</span>
           </div>
 
           <div className="space-y-4">
@@ -163,19 +165,19 @@ export default function ResultsPanel({ project, models, onNavigate }: ResultsPan
           </div>
         </div>
 
-        {/* Score Averages & Approval Ratings */}
+        {/* First-place counts */}
         <div className="rounded-2xl border border-brand-border bg-brand-panel p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-brand-border/40 pb-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
               <ThumbsUp className="h-4 w-4 text-green-400" />
-              Approval-As-Base Ratings
+              First-Place Ballots
             </h3>
-            <span className="text-[10px] text-brand-text-muted">Total judges willing to use this as the starting draft</span>
+            <span className="text-[10px] text-brand-text-muted">How often each anonymous answer was ranked first</span>
           </div>
 
           <div className="space-y-4">
-            {sortByValueDesc(r.approval.counts).map(([cid, val]) => {
-              const pct = (val / r.judgeCount) * 100;
+            {sortByValueDesc(firstPlace).map(([cid, val]) => {
+              const pct = maxFirstPlace ? (val / maxFirstPlace) * 100 : 0;
               return (
                 <div key={cid} className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
@@ -184,7 +186,7 @@ export default function ResultsPanel({ project, models, onNavigate }: ResultsPan
                       <span className="text-[9px] text-slate-500 font-mono">({getModelBloc(cid)})</span>
                     </span>
                     <span className="font-bold text-green-400 font-mono">
-                      {val} / {r.judgeCount} ({pct.toFixed(0)}%)
+                      {val} first-place
                     </span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-brand-bg overflow-hidden border border-brand-border/30">
@@ -197,6 +199,31 @@ export default function ResultsPanel({ project, models, onNavigate }: ResultsPan
               );
             })}
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-brand-border bg-brand-panel p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-brand-border/40 pb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-cyan-400" />
+            Final Ranking Order
+          </h3>
+          <span className="text-[10px] text-brand-text-muted">Lower average rank is better; fatal concerns break close cases</span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {finalRanking.map((cid, index) => (
+            <div key={cid} className="rounded-xl border border-brand-border bg-brand-bg/50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold text-brand-accent font-mono">#{index + 1}</span>
+                <span className="text-[10px] text-brand-text-muted font-mono">
+                  avg rank {(averageRank[cid] || 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="mt-2 truncate text-sm font-bold text-white font-serif italic">{getModelName(cid)}</div>
+              <div className="mt-1 text-[10px] text-slate-500">{getModelBloc(cid)} Bloc</div>
+            </div>
+          ))}
         </div>
       </div>
 

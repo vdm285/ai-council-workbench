@@ -74,7 +74,8 @@ export default function Stage3Panel({
 
     const resultsSummary = `Recommended base: ${getModelName(project.electionResults?.recommendedBase || '')}
 Borda winner: ${getModelName(Object.entries(project.electionResults?.borda || {}).sort((a,b)=>b[1]-a[1])[0]?.[0] || '')}
-Score winner: ${getModelName(Object.entries(project.electionResults?.score.meanByCandidate || {}).sort((a,b)=>b[1]-a[1])[0]?.[0] || '')}`;
+Minimax winner: ${getModelName(project.electionResults?.minimax.winner || '')}
+First-place winner: ${getModelName(Object.entries(project.electionResults?.firstPlace || {}).sort((a,b)=>b[1]-a[1])[0]?.[0] || '')}`;
 
     const ledgerText = `Base Candidate: ${getModelName(l.baseCandidateId)} (${l.baseCandidateId || 'unset'})
 Runner-ups: ${(l.runnerUpCandidateIds || []).map(id => `${getModelName(id)} (${id})`).join(', ') || 'none'}

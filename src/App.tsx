@@ -42,6 +42,7 @@ function createFreshProject(id: string, title: string): Project {
     originalPrompt: '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    activeModelIds: DEFAULT_MODELS.map(m => m.id),
     stage1Responses: {},
     stage2Orders: {},
     stage2Raw: {},
@@ -102,6 +103,10 @@ export default function App() {
 
   const activeProject = state.activeProjectId ? state.projects[state.activeProjectId] || null : null;
   const currentModels = state.customModels.length > 0 ? state.customModels : DEFAULT_MODELS;
+  const configuredActiveIds = activeProject?.activeModelIds?.filter(id => currentModels.some(m => m.id === id)) || [];
+  const activeModelIds = configuredActiveIds.length ? configuredActiveIds : currentModels.map(m => m.id);
+  const activeModels = currentModels.filter(m => activeModelIds.includes(m.id));
+  const cockpitMode = activeTab === 'stage1' || activeTab === 'stage2';
 
   const updateActiveProject = (updated: Project) => {
     if (!state.activeProjectId) return;
@@ -156,16 +161,28 @@ export default function App() {
     setState(prev => ({ ...prev, customModels: [] }));
   };
 
-  const handleGenerateOrders = () => {
+  const handleSetActiveModelIds = (ids: string[]) => {
     if (!activeProject) return;
-    const candidateIds = currentModels.map(m => m.id);
-    const orders: Record<string, string[]> = {};
-    currentModels.forEach(judge => {
-      const seedText = `${activeProject.title}|${judge.id}|stage2|${activeProject.originalPrompt}`;
-      orders[judge.id] = seededShuffle(candidateIds, seedText);
-    });
     updateActiveProject({
       ...activeProject,
+      activeModelIds: ids
+    });
+  };
+
+  const handleGenerateOrders = (projectOverride?: Project) => {
+    const sourceProject = projectOverride || activeProject;
+    if (!sourceProject) return;
+    const candidateIds = activeModels.map(m => m.id);
+    const sharedOrder = seededShuffle<string>(
+      candidateIds,
+      `${sourceProject.title}|shared-stage2|${sourceProject.originalPrompt}`
+    );
+    const orders: Record<string, string[]> = {};
+    activeModels.forEach(judge => {
+      orders[judge.id] = sharedOrder;
+    });
+    updateActiveProject({
+      ...sourceProject,
       stage2Orders: orders
     });
   };
@@ -176,7 +193,7 @@ export default function App() {
       pid => !activeProject.consensusProposals[pid]?.parseError
     );
     const orders: Record<string, string[]> = {};
-    currentModels.forEach(judge => {
+    activeModels.forEach(judge => {
       const seedText = `${activeProject.title}|${judge.id}|stage4|${JSON.stringify(proposalIds)}`;
       orders[judge.id] = seededShuffle(proposalIds, seedText);
     });
@@ -186,12 +203,14 @@ export default function App() {
     });
   };
 
-  const handleComputeElection = () => {
+  const handleComputeElection = (ballotsOverride?: JudgeBallot[]) => {
     if (!activeProject) return;
-    const ballots = (Object.values(activeProject.judgeBallots) as JudgeBallot[]).filter(
-      b => !b.parseError && b.ranking && b.ranking.length > 0
+    const sourceBallots = ballotsOverride || (Object.values(activeProject.judgeBallots) as JudgeBallot[]);
+    const activeJudgeIds = new Set(activeModels.map(m => m.id));
+    const ballots = sourceBallots.filter(
+      b => activeJudgeIds.has(b.judgeId) && !b.parseError && b.ranking && b.ranking.length > 0
     );
-    const candidateIds = currentModels.map(m => m.id);
+    const candidateIds = activeModels.map(m => m.id);
     if (ballots.length < 2) return;
     const results = computeElections(candidateIds, ballots);
 
@@ -256,9 +275,9 @@ export default function App() {
       />
 
       <div className="flex-1 flex flex-col md:flex-row relative">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        {!cockpitMode && <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />}
 
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-10 max-w-7xl mx-auto w-full select-text">
+        <main className={`flex-1 overflow-y-auto w-full select-text ${cockpitMode ? 'px-3 py-3 sm:px-4 max-w-none' : 'px-4 py-6 sm:px-6 sm:py-8 lg:px-10 max-w-7xl mx-auto'}`}>
           {activeProject ? (
             <>
               {activeTab === 'overview' && (
@@ -272,6 +291,8 @@ export default function App() {
                 <Stage1Panel
                   project={activeProject}
                   models={currentModels}
+                  activeModelIds={activeModelIds}
+                  onSetActiveModelIds={handleSetActiveModelIds}
                   onUpdateProject={updateActiveProject}
                   onGenerateOrders={handleGenerateOrders}
                   onNavigate={setActiveTab}
@@ -281,7 +302,7 @@ export default function App() {
               {activeTab === 'stage2' && (
                 <Stage2Panel
                   project={activeProject}
-                  models={currentModels}
+                  models={activeModels}
                   onUpdateProject={updateActiveProject}
                   onNavigate={setActiveTab}
                   onComputeElection={handleComputeElection}
@@ -291,7 +312,7 @@ export default function App() {
               {activeTab === 'results' && (
                 <ResultsPanel
                   project={activeProject}
-                  models={currentModels}
+                  models={activeModels}
                   onNavigate={setActiveTab}
                 />
               )}
@@ -299,7 +320,7 @@ export default function App() {
               {activeTab === 'ledger' && (
                 <LedgerPanel
                   project={activeProject}
-                  models={currentModels}
+                  models={activeModels}
                   onUpdateProject={updateActiveProject}
                   onNavigate={setActiveTab}
                 />
@@ -308,7 +329,7 @@ export default function App() {
               {activeTab === 'stage3' && (
                 <Stage3Panel
                   project={activeProject}
-                  models={currentModels}
+                  models={activeModels}
                   onUpdateProject={updateActiveProject}
                   onNavigate={setActiveTab}
                   onGenerateStage4={handleGenerateStage4Orders}
@@ -318,7 +339,7 @@ export default function App() {
               {activeTab === 'stage4' && (
                 <Stage4Panel
                   project={activeProject}
-                  models={currentModels}
+                  models={activeModels}
                   onUpdateProject={updateActiveProject}
                   onNavigate={setActiveTab}
                   onSelectFinal={handleSelectFinal}
@@ -328,7 +349,7 @@ export default function App() {
               {activeTab === 'final' && (
                 <FinalPanel
                   project={activeProject}
-                  models={currentModels}
+                  models={activeModels}
                   onNavigate={setActiveTab}
                 />
               )}
