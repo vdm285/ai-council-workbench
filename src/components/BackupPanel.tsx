@@ -93,7 +93,7 @@ export default function BackupPanel({
               Import & Export Project Configuration
             </h2>
             <p className="text-xs text-brand-text-muted mt-0.5">
-              Preserve your entire multi-model runs (stage responses, random shuffles, judge ballots, ledger adjustments, consensus proposals, and final approvals) inside self-contained JSON records.
+                Preserve your entire multi-model runs (stage responses, random shuffles, judge ballots, ledger adjustments, synthesis choices, and final answers) inside self-contained JSON records.
             </p>
           </div>
           <span className="rounded-full bg-brand-accent/10 border border-brand-accent/20 px-2.5 py-0.5 text-xs text-brand-accent font-medium font-mono">

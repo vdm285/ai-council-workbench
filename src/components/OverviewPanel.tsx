@@ -46,17 +46,17 @@ export default function OverviewPanel({ onNavigate, modelsCount }: OverviewPanel
     },
     {
       num: '4',
-      title: 'Convergence (Stage 3)',
+      title: 'Final Synthesis (Stage 3)',
       icon: Shuffle,
       color: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
-      desc: 'Models are given the base answer plus ledger. They act as cooperative editors, creating a unified consensus proposal.'
+      desc: 'Choose one synthesizer, usually the winning base model or the most consensus-aligned judge. Give it the base answer, runner-up material, and ledger.'
     },
     {
       num: '5',
-      title: 'Closure (Stage 4 & Final)',
+      title: 'Closure (Final)',
       icon: Vote,
       color: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
-      desc: 'Judges approve/reject proposals. The app tier-selects the winning draft. Get the ultimate answer without extra rewrites.'
+      desc: 'Paste the final synthesized answer back into the app. Keep a private audit trail of the prompt, ranking logic, ledger, and final result.'
     }
   ];
 

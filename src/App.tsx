@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Model, Project, WorkbenchState, ConsensusLedger, JudgeBallot, ApprovalBallot } from './types';
-import { seededShuffle, computeElections, computeStage4Selection } from './utils';
+import { Model, Project, WorkbenchState, ConsensusLedger, JudgeBallot } from './types';
+import { seededShuffle, computeElections } from './utils';
 
 // Sub-components
 import Header from './components/Header';
@@ -20,7 +20,6 @@ import Stage2Panel from './components/Stage2Panel';
 import ResultsPanel from './components/ResultsPanel';
 import LedgerPanel from './components/LedgerPanel';
 import Stage3Panel from './components/Stage3Panel';
-import Stage4Panel from './components/Stage4Panel';
 import FinalPanel from './components/FinalPanel';
 import BackupPanel from './components/BackupPanel';
 
@@ -61,7 +60,9 @@ function createFreshProject(id: string, title: string): Project {
     stage4Orders: {},
     stage4Raw: {},
     approvalBallots: {},
-    finalSelection: null
+    finalSelection: null,
+    finalSynthesisModelId: '',
+    finalAnswerText: ''
   };
 }
 
@@ -187,22 +188,6 @@ export default function App() {
     });
   };
 
-  const handleGenerateStage4Orders = () => {
-    if (!activeProject) return;
-    const proposalIds = Object.keys(activeProject.consensusProposals).filter(
-      pid => !activeProject.consensusProposals[pid]?.parseError
-    );
-    const orders: Record<string, string[]> = {};
-    activeModels.forEach(judge => {
-      const seedText = `${activeProject.title}|${judge.id}|stage4|${JSON.stringify(proposalIds)}`;
-      orders[judge.id] = seededShuffle(proposalIds, seedText);
-    });
-    updateActiveProject({
-      ...activeProject,
-      stage4Orders: orders
-    });
-  };
-
   const handleComputeElection = (ballotsOverride?: JudgeBallot[]) => {
     if (!activeProject) return;
     const sourceBallots = ballotsOverride || (Object.values(activeProject.judgeBallots) as JudgeBallot[]);
@@ -227,19 +212,6 @@ export default function App() {
       ...activeProject,
       electionResults: results,
       consensusLedger: ledger
-    });
-  };
-
-  const handleSelectFinal = () => {
-    if (!activeProject) return;
-    const proposalIds = Object.keys(activeProject.consensusProposals).filter(
-      pid => !activeProject.consensusProposals[pid]?.parseError
-    );
-    const ballots = (Object.values(activeProject.approvalBallots) as ApprovalBallot[]).filter(b => !b.parseError);
-    const finalSelection = computeStage4Selection(proposalIds, ballots, activeProject.consensusProposals);
-    updateActiveProject({
-      ...activeProject,
-      finalSelection
     });
   };
 
@@ -332,17 +304,6 @@ export default function App() {
                   models={activeModels}
                   onUpdateProject={updateActiveProject}
                   onNavigate={setActiveTab}
-                  onGenerateStage4={handleGenerateStage4Orders}
-                />
-              )}
-
-              {activeTab === 'stage4' && (
-                <Stage4Panel
-                  project={activeProject}
-                  models={activeModels}
-                  onUpdateProject={updateActiveProject}
-                  onNavigate={setActiveTab}
-                  onSelectFinal={handleSelectFinal}
                 />
               )}
 

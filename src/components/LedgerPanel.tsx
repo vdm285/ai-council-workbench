@@ -345,9 +345,9 @@ export default function LedgerPanel({ project, models, onUpdateProject, onNaviga
             <CheckSquare className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-white font-sans">Launch Stage 3 Consensus Editing</h4>
+            <h4 className="text-sm font-bold text-white font-sans">Launch Final Synthesis</h4>
             <p className="text-xs text-brand-text-muted leading-relaxed">
-              Once you have formulated your constitution, save it and proceed to Stage 3. Models will act as rigorous copy-editors to integrate these directives into a unified, definitive proposal.
+              Once you have formulated the ledger, save it and proceed to the final synthesis station. One chosen model will integrate the winning base answer, runner-up material, and ledger directives.
             </p>
           </div>
         </div>
@@ -360,7 +360,7 @@ export default function LedgerPanel({ project, models, onUpdateProject, onNaviga
           disabled={!baseId}
           className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 rounded-xl bg-brand-accent px-6 py-3.5 text-sm font-bold text-brand-bg hover:bg-brand-accent/90 disabled:opacity-50 transition-all cursor-pointer shadow-lg shadow-brand-accent/15"
         >
-          Formulate Proposals
+          Build Final Prompt
           <Play className="h-4 w-4" />
         </button>
       </div>
