@@ -145,6 +145,8 @@ export interface Project {
   stage4Raw: Record<string, string>; // judge.id -> raw text pasted
   approvalBallots: Record<string, ApprovalBallot>; // judge.id -> parsed ballot
   finalSelection: FinalSelection | null;
+  finalSynthesisModelId?: string;
+  finalAnswerText?: string;
 }
 
 export interface WorkbenchState {

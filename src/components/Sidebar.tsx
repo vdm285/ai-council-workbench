@@ -10,8 +10,7 @@ import {
   EyeOff,
   BarChart3,
   FileSpreadsheet,
-  Shuffle,
-  CheckSquare,
+  Wand2,
   Award,
   Database,
   ChevronRight,
@@ -85,16 +84,9 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     {
       id: 'stage3',
       num: '3',
-      label: 'Consensus Proposals',
-      icon: Shuffle,
-      description: 'Convergent model editing'
-    },
-    {
-      id: 'stage4',
-      num: '4',
-      label: 'Final Approval',
-      icon: CheckSquare,
-      description: 'Ranked proposal ballot'
+      label: 'Final Synthesis',
+      icon: Wand2,
+      description: 'One chosen model compiles'
     },
     {
       id: 'final',
