@@ -35,9 +35,9 @@ export interface Correction {
 export interface JudgeBallot {
   judgeId: string;
   parseError?: string;
+  parseWarnings?: string[];
   ranking?: string[]; // Candidate IDs ordered from best to worst
-  scores?: Record<string, number | { accuracy: number; completeness: number; clarity: number; usefulness: number }>;
-  approvedAsBase?: string[]; // Candidate IDs
+  approvedAsBase?: string[]; // Candidate IDs kept for backwards-compatible imports
   fatalFlaws?: FatalFlaw[];
   corrections?: Correction[];
   ledgerItems?: {
@@ -84,9 +84,15 @@ export interface ElectionResults {
   candidateIds: string[];
   judgeCount: number;
   borda: Record<string, number>;
+  firstPlace: Record<string, number>;
+  averageRank: Record<string, number>;
   condorcet: {
     winner: string | null;
     matrix: Record<string, Record<string, number>>;
+  };
+  minimax: {
+    winner: string | null;
+    worstDefeats: Record<string, number>;
   };
   irv: {
     winner: string | null;
@@ -95,18 +101,12 @@ export interface ElectionResults {
       counts: Record<string, number>;
     }>;
   };
-  score: {
-    values: Record<string, number[]>;
-    meanByCandidate: Record<string, number>;
-  };
-  approval: {
-    counts: Record<string, number>;
-  };
   fatalCounts: Record<string, number>;
   methodWinners: string[];
   winnerCounts: Record<string, number>;
   recommendedBase: string;
   runnerUps: string[];
+  finalRanking: string[];
   robustAgreement: boolean;
 }
 
@@ -132,6 +132,7 @@ export interface Project {
   originalPrompt: string;
   createdAt: string;
   updatedAt: string;
+  activeModelIds?: string[];
   stage1Responses: Record<string, string>; // model.id -> response
   stage2Orders: Record<string, string[]>; // judge.id -> randomized array of candidate model.ids
   stage2Raw: Record<string, string>; // judge.id -> raw text pasted
